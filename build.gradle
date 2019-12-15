@@ -41,6 +41,7 @@ dependencies {
     implementation "com.github.sarxos:webcam-capture:0.3.12"
     implementation "com.github.sarxos:webcam-capture-driver-ipcam:0.3.12"
     implementation "com.google.zxing:javase:3.3.0"
+    implementation "com.pi4j:pi4j-core:1.2"
 }
 
 shadowJar {
