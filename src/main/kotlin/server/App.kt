@@ -20,7 +20,7 @@ private var guard = Guard()
 
 fun main(args: Array<String>) {
     val cameraIP = if (args.isEmpty()) null else args[0]
-    guard.init(cameraIP)
+//    guard.init(cameraIP)
     embeddedServer(Netty, 8081, watchPaths = listOf("getToken"), module = Application::module).start()
 }
 
