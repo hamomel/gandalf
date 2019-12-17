@@ -44,7 +44,7 @@ class Guard {
         val validTill = System.currentTimeMillis() + TOKEN_LIFETIME
         tokensWithLifetime[token] = validTill
         tokensWithId[token] = userId
-        Log.d("added token: $token")
+        println("added token: $token")
         return validTill
     }
 
@@ -63,8 +63,8 @@ class Guard {
                 } catch (e: InterruptedException) {
                     e.printStackTrace()
                 }
-                var result: Result? = null
-                var image: BufferedImage? = null
+                var result: Result?
+                var image: BufferedImage?
                 if (webcam.isOpen) {
                     image = webcam.image ?: continue
                     val source: LuminanceSource = BufferedImageLuminanceSource(image)
@@ -87,10 +87,10 @@ class Guard {
     }
 
     private fun processCode(code: String) {
-        Log.d("captured code: $code")
+        println("captured code: $code")
         if (tokensWithLifetime[code]?.let { it > System.currentTimeMillis() } == true ) {
             tokensWithId[code]?.let {
-                Log.d("code is valid: $code")
+                println("code is valid: $code")
                 tokensWithLifetime.remove(code)
                 tokensWithId.remove(code)
                 gate.open(it)
