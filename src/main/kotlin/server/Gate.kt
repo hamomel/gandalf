@@ -3,8 +3,12 @@ package server
 import com.pi4j.io.gpio.*
 import com.pi4j.platform.Platform
 import com.pi4j.platform.PlatformManager
+import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
+import java.io.File
 import java.util.concurrent.ConcurrentLinkedQueue
-import kotlin.concurrent.thread
 
 private const val MM_PER_STEP = 5.7 * 13 / 200
 private val dir = System.getProperty("user.dir")
@@ -40,12 +44,14 @@ class Gate {
         endstopPin = gpio.provisionDigitalInputPin(OrangePiPin.GPIO_12, "endstop")
         endstopPin.setShutdownOptions(true, PinState.LOW, PinPullResistance.OFF)
 
-        upArm()
-        homeBed()
+        runBlocking {
+            upArm()
+            homeBed()
+        }
 
-        thread {
+        GlobalScope.launch {
             while (true) {
-                Thread.sleep(100)
+                delay(100)
                 if (!queue.isEmpty()) {
                     doOpen(queue.poll())
                 }
@@ -53,16 +59,24 @@ class Gate {
         }
     }
 
-    fun open(userId: String) {
-        getCardPosition(userId)?.let {
-            queue.add(it)
+    fun open(hash: String) {
+        val dir = System.getProperty("user.dir")
+        val file = File(dir, "users.csv")
+        var position: Int? = null
+        file.readLines().forEach {
+            val parts = it.split(",")
+            if (parts[0] == hash) {
+                position = parts[1].toInt()
+            }
         }
+
+        if (position == null) return
+        queue.add(position)
     }
 
-    fun doOpen(position: Int) {
+    private suspend fun doOpen(position: Int) {
         upArm()
         homeBed()
-        Thread.sleep(500)
         val distance = position * 16
         moveBed(distance)
         openArm()
@@ -70,9 +84,7 @@ class Gate {
         closeArm()
         upArm()
         homeBed()
-        Thread.sleep(500)
         downHand()
-        Thread.sleep(3000)
         riseHand()
         moveBed(distance)
         downArm()
@@ -96,21 +108,21 @@ class Gate {
         processBuilder.command(ARM_DOWN_COMMAND).start().waitFor()
     }
 
-    private fun riseHand() {
+    private suspend fun riseHand() {
         handDirectionPin.high()
         for (i in 0 until HAND_STEPS) {
             stepHand()
         }
     }
 
-    private fun downHand() {
+    private suspend fun downHand() {
         handDirectionPin.low()
         for (i in 0 until HAND_STEPS) {
             stepHand()
         }
     }
 
-    private fun moveBed(distance: Int) {
+    private suspend fun moveBed(distance: Int) {
         bedDirectionPin.low()
         val steps = distance / MM_PER_STEP
         println("move distance: ${steps.toInt()}")
@@ -119,7 +131,7 @@ class Gate {
         }
     }
 
-    private fun homeBed() {
+    private suspend fun homeBed() {
         bedDirectionPin.high()
 
         while (endstopPin.isHigh) {
@@ -128,17 +140,17 @@ class Gate {
         }
     }
 
-    private fun stepBed() {
+    private suspend fun stepBed() {
         bedStepPin.state = PinState.HIGH
-        Thread.sleep(5)
+        delay(5)
         bedStepPin.state = PinState.LOW
-        Thread.sleep(5)
+        delay(5)
     }
 
-    private fun stepHand() {
+    private suspend fun stepHand() {
         handStepPin.state = PinState.HIGH
-        Thread.sleep(10)
+        delay(10)
         handStepPin.state = PinState.LOW
-        Thread.sleep(10)
+        delay(10)
     }
 }

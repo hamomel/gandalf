@@ -8,25 +8,25 @@ import com.github.sarxos.webcam.ds.ipcam.IpCamMode
 import com.google.zxing.*
 import com.google.zxing.client.j2se.BufferedImageLuminanceSource
 import com.google.zxing.common.HybridBinarizer
+import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import java.awt.image.BufferedImage
+import java.nio.charset.StandardCharsets
+import java.security.MessageDigest
 import java.util.concurrent.ConcurrentHashMap
-import kotlin.concurrent.thread
 
 private const val TOKEN_LIFETIME = 30000
 
 class Guard {
     private val tokensWithLifetime = ConcurrentHashMap<String, Long>()
-    private val tokensWithId = ConcurrentHashMap<String, String>()
+    private val tokensWithId = ConcurrentHashMap<String, Passport>()
     private val gate = Gate()
 
     init {
-        thread {
+        GlobalScope.launch {
             while (true) {
-                try {
-                    Thread.sleep(500)
-                } catch (e: InterruptedException) {
-
-                }
+                delay(500)
 
                 val iterator = tokensWithLifetime.iterator()
                 while (iterator.hasNext()) {
@@ -40,15 +40,7 @@ class Guard {
         }
     }
 
-    fun addToken(token: String, userId: String): Long {
-        val validTill = System.currentTimeMillis() + TOKEN_LIFETIME
-        tokensWithLifetime[token] = validTill
-        tokensWithId[token] = userId
-        println("added token: $token")
-        return validTill
-    }
-
-    fun init(cameraIP: String?) {
+    fun start(cameraIP: String?) {
         cameraIP?.let {
             Webcam.setDriver(IpCamDriver())
             IpCamDeviceRegistry.register("DroidCam", "http://$it:4747/mjpegfeed?640x480", IpCamMode.PUSH)
@@ -56,13 +48,10 @@ class Guard {
         val webcam = Webcam.getWebcams()[0]
         webcam.viewSize = WebcamResolution.VGA.size
 
-        thread {
+        GlobalScope.launch {
             do {
-                try {
-                    Thread.sleep(100)
-                } catch (e: InterruptedException) {
-                    e.printStackTrace()
-                }
+                delay(100)
+
                 var result: Result?
                 var image: BufferedImage?
                 if (webcam.isOpen) {
@@ -86,14 +75,29 @@ class Guard {
         }
     }
 
+    fun addToken(token: String, document: Passport): Long {
+        val validTill = System.currentTimeMillis() + TOKEN_LIFETIME
+        tokensWithLifetime[token] = validTill
+        tokensWithId[token] = document
+        println("added token: $token")
+        return validTill
+    }
+
+    fun getHash(passport: Passport): String {
+        val digest = MessageDigest.getInstance("SHA-256")
+        val string = passport.toString()
+        val bytes = digest.digest(string.toByteArray(StandardCharsets.UTF_8))
+        return String(bytes)
+    }
+
     private fun processCode(code: String) {
         println("captured code: $code")
-        if (tokensWithLifetime[code]?.let { it > System.currentTimeMillis() } == true ) {
+        if (tokensWithLifetime[code]?.let { it > System.currentTimeMillis() } == true) {
             tokensWithId[code]?.let {
                 println("code is valid: $code")
                 tokensWithLifetime.remove(code)
                 tokensWithId.remove(code)
-                gate.open(it)
+                gate.open(getHash(it))
             }
         }
     }

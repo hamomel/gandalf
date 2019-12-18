@@ -37,6 +37,10 @@ dependencies {
 
     implementation "io.ktor:ktor-server-core:$ktor_version"
     implementation "io.ktor:ktor-server-netty:$ktor_version"
+    implementation "io.ktor:ktor-client-core:$ktor_version"
+    implementation "io.ktor:ktor-client-okhttp:$ktor_version"
+    implementation "io.ktor:ktor-client-json:$ktor_version"
+    implementation "io.ktor:ktor-client-gson:$ktor_version"
     implementation "ch.qos.logback:logback-classic:1.2.3"
     implementation "com.github.sarxos:webcam-capture:0.3.12"
     implementation "com.github.sarxos:webcam-capture-driver-ipcam:0.3.12"
